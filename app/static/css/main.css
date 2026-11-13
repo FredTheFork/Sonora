@@ -1,0 +1,404 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family:  'Space Mono';
+    background: #F8F9FA;
+    color: #1b1b1b;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 1.5rem;
+}
+
+.spotify-btn {
+    background: #1DB954;
+    color: white;
+    padding: 14px 32px;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 56px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 1000;
+}
+
+.top-nav__btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #1b1b1b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.top-nav__btn:active {
+    background: #f0f0f0;
+}
+
+.top-nav__btn--menu {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.top-nav__logo {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: 4px;
+    color: #1b1b1b;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.mobile-bottom-navigation {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+
+    width: 100%;
+    height: 75px;
+
+    background-color: #ffffff;
+
+    border-top: 1px solid #dddddd;
+
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+
+    z-index: 1000;
+
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+
+/* ==========================================
+   INDIVIDUAL NAVIGATION ITEMS
+   ========================================== */
+
+.mobile-navigation-item {
+
+    width: 25%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    justify-content: center;
+    align-items: center;
+
+    gap: 7px;
+
+    color: #888888;
+
+    cursor: pointer;
+
+    transition: background-color 0.2s ease;
+}
+
+
+/* ==========================================
+   ACTIVE NAVIGATION ITEM
+   ========================================== */
+
+.mobile-navigation-item-active {
+
+    background-color: #000000;
+
+    color: #ffffff;
+
+}
+
+
+/* ==========================================
+   NAVIGATION ICONS
+   ========================================== */
+
+.mobile-navigation-icon {
+
+    font-size: 25px;
+
+    height: 25px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    line-height: 1;
+
+}
+
+
+/* Individual icon adjustments */
+
+.mobile-navigation-icon-pool {
+    font-size: 28px;
+}
+
+
+.mobile-navigation-icon-vault {
+    font-size: 24px;
+}
+
+
+.mobile-navigation-icon-trade {
+    font-size: 27px;
+}
+
+
+.mobile-navigation-icon-rank {
+    font-size: 25px;
+}
+
+
+
+/* ==========================================
+   NAVIGATION TEXT LABELS
+   ========================================== */
+
+.mobile-navigation-label {
+
+    font-size: 13px;
+
+    letter-spacing: 3px;
+
+    font-weight: 500;
+
+    text-align: center;
+
+}
+
+
+/* ==========================================
+   HOME PAGE LAYOUT
+   ========================================== */
+
+.home-header {
+    padding: 0 5%;
+    margin-bottom: 20px;
+}
+
+.home-header h1 {
+    text-align: left;
+    font-size: 60px;
+    line-height: 1;
+}
+
+/* ==========================================
+   LIVE POOL SECTION
+   ========================================== */
+
+.live-pool-container {
+    margin: 0 5% 30px 5%;
+    border: 2px solid #1b1b1b;
+    padding: 30px 20px;
+    text-align: center;
+    position: relative;
+    background: #fff;
+}
+
+.live-pool-label {
+    position: absolute;
+    top: -12px;
+    left: 15px;
+    background: #ffd900;
+    border: 1px solid #1b1b1b;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    font-family: 'Space Mono', monospace;
+}
+
+.vinyl-spinner {
+    height: 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.vinyl-spinner img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+}
+
+.spin-now-btn {
+    background: #1b1b1b;
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    font-family: 'Space Mono', monospace;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.spin-now-btn:hover {
+    background: #333;
+}
+
+/* ==========================================
+   DISCOVERY PROGRESS SECTION
+   ========================================== */
+
+.progress-container {
+    margin: 0 5% 30px 5%;
+    border: 2px solid #1b1b1b;
+    padding: 20px;
+    position: relative;
+    background: #fff;
+}
+
+.progress-label {
+    position: absolute;
+    top: -12px;
+    left: 15px;
+    background: #ffd900;
+    border: 1px solid #1b1b1b;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    font-family: 'Space Mono', monospace;
+}
+
+.progress-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.progress-count {
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: -1px;
+}
+
+.progress-remaining {
+    font-size: 12px;
+    color: #555;
+    letter-spacing: 1px;
+}
+/* ==========================================
+   RECENTLY FOUND SECTION
+   ========================================== */
+
+.recently-found-container {
+    margin: 0 5% 100px 5%; /* 100px bottom margin to clear the nav bar */
+}
+
+.recently-found-label {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    text-align: left;
+    letter-spacing: 2px;
+    border-bottom: 2px solid #1b1b1b;
+    padding-bottom: 8px;
+}
+
+.found-song-card {
+    display: flex;
+    align-items: stretch; /* Stretches the image box to match text height */
+    border: 2px solid #1b1b1b;
+    margin-bottom: 15px;
+    background: #fff;
+    min-height: 80px;
+}
+
+/* The box holding the image */
+.album-art-box {
+    width: 80px;
+    min-height: 80px;
+    background: #111;
+    border-right: 2px solid #1b1b1b;
+    overflow: hidden;
+    position: relative;
+}
+
+/* The actual image with the RETRO FILTER */
+.retro-album-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image doesn't stretch weirdly */
+    
+    /* --- THE RETRO FILTER --- */
+    /* Sepia adds a brownish/old tint, contrast makes it pop, brightness darkens slightly */
+    filter: sepia(0.4) contrast(1.1) brightness(0.9) saturate(0.8);
+    transition: filter 0.3s ease; /* Smooth transition for the hover effect */
+}
+
+/* Cool interaction: When you hover over the card, it becomes full color! */
+.found-song-card:hover .retro-album-art {
+    filter: sepia(0) contrast(1) brightness(1) saturate(1);
+}
+
+/* Fallback text if Spotify doesn't have an image */
+.no-art {
+    color: #555;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.song-info {
+    padding: 15px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Vertically centers the text next to the image */
+    flex-grow: 1;
+}
+
+.song-title {
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.song-artist {
+    font-size: 12px;
+    color: #666;
+}
+
+.no-songs-found {
+    border: 2px dashed #ccc;
+    padding: 20px;
+    font-size: 12px;
+    color: #888;
+    letter-spacing: 1px;
+}

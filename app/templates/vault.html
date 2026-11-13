@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Vault — Sonora{% endblock %}
+{% block head_extra %}
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                colors: {
+                    "surface-bright": "#f9f9f9",
+                    "surface-container": "#eeeeee",
+                    "on-secondary-container": "#626566",
+                    "surface-container-highest": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "secondary-fixed-dim": "#c5c7c8",
+                    "primary-container": "#1b1b1b",
+                    "secondary": "#5c5f60",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed": "#191c1d",
+                    "tertiary-container": "#221b00",
+                    "on-surface-variant": "#4c4546",
+                    "on-secondary-fixed-variant": "#454748",
+                    "on-primary-fixed-variant": "#474747",
+                    "primary-fixed": "#e2e2e2",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#221b00",
+                    "inverse-surface": "#303030",
+                    "tertiary": "#000000",
+                    "on-background": "#1b1b1b",
+                    "surface-dim": "#dadada",
+                    "primary": "#000000",
+                    "on-primary": "#ffffff",
+                    "on-surface": "#1b1b1b",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#e1e3e4",
+                    "inverse-primary": "#c6c6c6",
+                    "on-primary-fixed": "#1b1b1b",
+                    "outline-variant": "#cfc4c5",
+                    "background": "#f9f9f9",
+                    "surface": "#f9f9f9",
+                    "surface-tint": "#5e5e5e",
+                    "on-primary-container": "#848484",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed": "#ffe16d",
+                    "surface-container-high": "#e8e8e8",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#e9c400",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#f3f3f3",
+                    "on-tertiary-container": "#9b8200",
+                    "surface-variant": "#e2e2e2",
+                    "secondary-container": "#e1e3e4",
+                    "on-tertiary-fixed-variant": "#544600"
+                },
+                borderRadius: {
+                    DEFAULT: "0.125rem",
+                    lg: "0.25rem",
+                    xl: "0.5rem",
+                    full: "0.75rem"
+                },
+                spacing: {
+                    "stack-md": "16px",
+                    "stack-lg": "32px",
+                    "unit": "4px",
+                    "margin-edge": "32px",
+                    "stack-sm": "8px",
+                    "gutter-md": "24px"
+                },
+                fontFamily: {
+                    "headline-xl-mobile": ["Space Mono"],
+                    "headline-lg": ["Space Mono"],
+                    "label-sm": ["Space Mono"],
+                    "body-lg": ["Space Grotesk"],
+                    "body-md": ["Space Grotesk"],
+                    "label-md": ["Space Mono"],
+                    "headline-xl": ["Space Mono"],
+                    "headline-md": ["Space Mono"]
+                },
+                fontSize: {
+                    "headline-xl-mobile": ["32px", {lineHeight: "1.1", fontWeight: "700"}],
+                    "headline-lg": ["32px", {lineHeight: "1.2", fontWeight: "700"}],
+                    "label-sm": ["12px", {lineHeight: "1.2", fontWeight: "500"}],
+                    "body-lg": ["18px", {lineHeight: "1.5", fontWeight: "400"}],
+                    "body-md": ["16px", {lineHeight: "1.5", fontWeight: "400"}],
+                    "label-md": ["14px", {lineHeight: "1.2", fontWeight: "500"}],
+                    "headline-xl": ["48px", {lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700"}],
+                    "headline-md": ["24px", {lineHeight: "1.2", fontWeight: "700"}]
+                }
+            }
+        }
+    }
+</script>
+<style>
+    .brutalist-card { border: 2px solid #000000; transition: transform 0.1s ease, box-shadow 0.1s ease; }
+    .brutalist-card:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+    .hard-shadow { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+    .rarity-common { background-color: #e2e2e2; color: #000000; }
+    .rarity-rare { background-color: #3b82f6; color: #ffffff; }
+    .rarity-epic { background-color: #a855f7; color: #ffffff; }
+    .rarity-legendary { background-color: #EAB308; color: #000000; border: 2px solid #000000; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .hidden-filter { display: none !important; }
+</style>
+{% endblock %}
+{% block content %}
+<body class="bg-surface-bright text-on-surface font-body-md min-h-screen pb-24">
+<header class="fixed top-0 left-0 w-full z-50 bg-surface border-b-2 border-primary flex justify-between items-center px-margin-edge py-stack-sm h-16">
+    <div class="flex items-center gap-4">
+        <span class="material-symbols-outlined text-primary cursor-pointer">menu</span>
+        <h1 class="font-headline-md text-headline-md font-bold tracking-tighter text-primary">SONORA</h1>
+    </div>
+    <div class="flex items-center gap-4">
+        <span class="material-symbols-outlined text-primary cursor-pointer">notifications</span>
+        {% if user.profile_image_url %}
+            <div class="w-10 h-10 border-2 border-primary overflow-hidden">
+                <img alt="Profile" class="w-full h-full object-cover" src="{{ user.profile_image_url }}">
+            </div>
+        {% else %}
+            <div class="w-10 h-10 border-2 border-primary flex items-center justify-center bg-primary text-on-primary font-label-md">
+                {{ (user.display_name or 'U')|upper|truncate(1, true, '') }}
+            </div>
+        {% endif %}
+    </div>
+</header>
+
+<main class="pt-20 px-4 max-w-5xl mx-auto">
+    <!-- Profile Header -->
+    <section class="mt-8 mb-stack-lg">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-gutter-md">
+            <div>
+                <h2 class="font-headline-xl text-headline-xl text-primary leading-none">{{ (user.display_name or 'UNKNOWN USER')|upper }}</h2>
+                <div class="inline-flex items-center gap-2 mt-stack-sm bg-primary text-on-primary px-3 py-1 font-label-md">
+                    <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+                    {{ streak }} DAY STREAK
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-4">
+                <div class="brutalist-card bg-surface p-4 flex flex-col min-w-[120px]">
+                    <span class="font-label-sm text-on-surface-variant uppercase">Total Songs</span>
+                    <span class="font-headline-md text-primary">{{ total_songs }}</span>
+                </div>
+                <div class="brutalist-card bg-surface p-4 flex flex-col min-w-[120px]">
+                    <span class="font-label-sm text-on-surface-variant uppercase">Rare Songs</span>
+                    <span class="font-headline-md text-primary">{{ rare_songs }}</span>
+                </div>
+                <div class="brutalist-card bg-surface p-4 flex flex-col min-w-[120px]">
+                    <span class="font-label-sm text-on-surface-variant uppercase">Albums</span>
+                    <span class="font-headline-md text-primary">{{ album_count }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Album Completion (Horizontal Scroll) -->
+    <section class="mb-stack-lg overflow-hidden">
+        <h3 class="font-headline-md text-primary mb-stack-sm uppercase tracking-tight">Album Progress</h3>
+        {% if albums %}
+        <div class="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1">
+            {% for album in albums %}
+            <div class="flex-shrink-0 w-40 brutalist-card bg-white p-3 {% if album.complete %}border-2 border-yellow-500 relative{% endif %}">
+                {% if album.complete %}
+                <div class="absolute -top-2 -right-2 rarity-legendary px-2 py-0.5 text-[10px] font-bold">COMPLETE</div>
+                {% endif %}
+                {% if album.art %}
+                    <img class="w-full aspect-square object-cover border border-primary mb-3" src="{{ album.art }}" alt="{{ album.name }}">
+                {% else %}
+                    <div class="w-full aspect-square border border-primary mb-3 bg-surface-container flex items-center justify-center">
+                        <span class="material-symbols-outlined text-on-surface-variant text-3xl">album</span>
+                    </div>
+                {% endif %}
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-label-sm text-primary truncate">{{ album.name|upper }}</span>
+                    <span class="font-label-sm text-primary flex-shrink-0 ml-2">{{ album.owned }}/{{ album.total }}</span>
+                </div>
+                <div class="w-full bg-surface-container h-2 border border-primary overflow-hidden">
+                    <div class="{% if album.complete %}bg-yellow-500{% else %}bg-primary{% endif %} h-full" style="width: {{ album.pct }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="border-2 border-dashed border-primary p-8 text-center text-on-surface-variant font-label-md uppercase">
+            No album progress yet. Reveal songs to start collecting albums.
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Inventory Filters & Search -->
+    <section class="mb-stack-md">
+        <div class="flex flex-col md:flex-row gap-4 mb-4">
+            <div class="flex-grow flex items-center bg-white border-2 border-primary px-4 py-2 h-12 focus-within:hard-shadow transition-all">
+                <span class="material-symbols-outlined text-primary mr-2">search</span>
+                <input id="vault-search" class="w-full bg-transparent border-none focus:ring-0 font-label-md placeholder-on-surface-variant uppercase outline-none" placeholder="SEARCH COLLECTION..." type="text">
+            </div>
+            <div class="flex flex-wrap gap-2" id="rarity-filters">
+                <button data-filter="all" class="filter-btn px-4 py-2 border-2 border-primary bg-primary text-on-primary font-label-md flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">filter_list</span>
+                    ALL
+                </button>
+                <button data-filter="common" class="filter-btn px-4 py-2 border-2 border-primary bg-white text-primary font-label-md hover:bg-surface-container-highest transition-colors">COMMON</button>
+                <button data-filter="rare" class="filter-btn px-4 py-2 border-2 border-primary bg-white text-primary font-label-md hover:bg-surface-container-highest transition-colors">RARE</button>
+                <button data-filter="epic" class="filter-btn px-4 py-2 border-2 border-primary bg-white text-primary font-label-md hover:bg-surface-container-highest transition-colors">EPIC</button>
+                <button data-filter="legendary" class="filter-btn px-4 py-2 border-2 border-primary bg-white text-primary font-label-md hover:bg-surface-container-highest transition-colors">LEGENDARY</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Song Grid -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-gutter-md" id="song-grid">
+        {% if inventory %}
+            {% for song in inventory %}
+            <div class="brutalist-card bg-white group cursor-pointer song-item"
+                 data-name="{{ song.name|lower }}"
+                 data-artist="{{ song.artist|lower }}"
+                 data-album="{{ (song.album or '')|lower }}"
+                 data-rarity="{{ song.rarity|lower }}">
+                <div class="relative overflow-hidden">
+                    {% if song.image %}
+                        <img class="w-full aspect-square object-cover grayscale border-b-2 border-primary group-hover:scale-105 transition-transform duration-300" src="{{ song.image }}" alt="{{ song.name }}">
+                    {% else %}
+                        <div class="w-full aspect-square border-b-2 border-primary bg-surface-container flex items-center justify-center">
+                            <span class="material-symbols-outlined text-on-surface-variant text-4xl">music_note</span>
+                        </div>
+                    {% endif %}
+                    <div class="absolute top-2 left-2 rarity-{{ song.rarity|lower }} px-2 py-0.5 text-[10px] font-bold uppercase">{{ song.rarity|upper }}</div>
+                    <div class="absolute bottom-2 right-2 bg-white border border-primary w-8 h-8 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-sm">play_arrow</span>
+                    </div>
+                </div>
+                <div class="p-3">
+                    <h4 class="font-label-md text-primary uppercase truncate">{{ song.name|upper }}</h4>
+                    <p class="font-label-sm text-on-surface-variant uppercase truncate">{{ song.artist|upper }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="col-span-full border-2 border-dashed border-primary p-12 text-center">
+            <span class="material-symbols-outlined text-5xl text-primary mb-2">inventory_2</span>
+            <p class="font-label-md text-primary uppercase">No Artifacts Collected Yet</p>
+            <p class="font-label-sm text-on-surface-variant mt-2">Listen to music on Spotify to reveal songs into your vault.</p>
+        </div>
+        {% endif %}
+    </section>
+</main>
+
+<!-- Bottom Navigation Bar -->
+<div class="mobile-bottom-navigation">
+
+    <div class="mobile-navigation-item" onclick="window.location.href='{{ url_for("pool.daily_pool") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-pool">
+            ≋
+        </div>
+
+        <div class="mobile-navigation-label">
+            POOL
+        </div>
+    </div>
+
+
+    <div class="mobile-navigation-item mobile-navigation-item-active" onclick="window.location.href='{{ url_for("vault.vault") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-vault">
+            ▣
+        </div>
+
+        <div class="mobile-navigation-label">
+            VAULT
+        </div>
+    </div>
+
+
+    <div class="mobile-navigation-item" onclick="window.location.href='{{ url_for("trade.trade") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-trade">
+            ⇄
+        </div>
+
+        <div class="mobile-navigation-label">
+            TRADE
+        </div>
+    </div>
+
+
+    <div class="mobile-navigation-item" onclick="window.location.href='{{ url_for("leaderboard.leaderboard") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-rank">
+            ▥
+        </div>
+
+        <div class="mobile-navigation-label">
+            RANK
+        </div>
+    </div>
+
+</div>
+
+<script>
+    (function () {
+        const search = document.getElementById('vault-search');
+        const grid = document.getElementById('song-grid');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        let activeFilter = 'all';
+
+        function applyFilters() {
+            const term = (search.value || '').toLowerCase().trim();
+            grid.querySelectorAll('.song-item').forEach(card => {
+                const matchesText = !term ||
+                    card.dataset.name.includes(term) ||
+                    card.dataset.artist.includes(term) ||
+                    card.dataset.album.includes(term);
+                const matchesRarity = activeFilter === 'all' || card.dataset.rarity === activeFilter;
+                if (matchesText && matchesRarity) {
+                    card.classList.remove('hidden-filter');
+                } else {
+                    card.classList.add('hidden-filter');
+                }
+            });
+        }
+
+        search.addEventListener('input', applyFilters);
+
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterButtons.forEach(b => {
+                    b.classList.remove('bg-primary', 'text-on-primary');
+                    b.classList.add('bg-white', 'text-primary');
+                });
+                btn.classList.add('bg-primary', 'text-on-primary');
+                btn.classList.remove('bg-white', 'text-primary');
+                activeFilter = btn.dataset.filter;
+                applyFilters();
+            });
+        });
+
+        document.querySelectorAll('.brutalist-card').forEach(card => {
+            card.addEventListener('mousedown', () => {
+                card.style.transform = 'translate(0px, 0px)';
+                card.style.boxShadow = 'none';
+            });
+            card.addEventListener('mouseup', () => {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            });
+        });
+    })();
+</script>
+</body>
+{% endblock %}

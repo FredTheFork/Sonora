@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Login — Sonora{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SONORA</title>
+
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
+
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #ffffff;
+    color: #111;
+    font-family: "Space Mono", monospace;
+    height: 100vh;
+}
+
+
+/* MAIN CONTAINER */
+
+.container {
+    width: 300px;
+    margin: 25px auto;
+}
+
+
+/* VINYL */
+
+.vinyl-box {
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.vinyl-box img {
+    width: 20vh;
+    height: 20vh;
+}
+
+
+
+/* TITLE */
+
+.logo {
+    text-align: center;
+    margin-top: 5px;
+}
+
+.logo h1 {
+    font-family: "Roboto Mono", monospace;
+    font-size: 25px;
+    letter-spacing: -2px;
+    margin: 0;
+    font-weight: 900;
+}
+
+.logo p {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #555;
+}
+
+
+
+/* SPOTIFY BUTTON */
+
+.spotify-btn {
+
+    margin-top: 25px;
+
+    height: 58px;
+    width: 300px;
+
+    background: #1db954;
+
+    border: 3px solid black;
+
+    box-shadow:
+        4px 4px 0px black;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    color:white;
+
+    font-family:"Space Mono", monospace;
+    font-size:14px;
+    font-weight:bold;
+
+    cursor:pointer;
+}
+
+
+.spotify-icon {
+    width:22px;
+    height:22px;
+
+    background:white;
+    border-radius:50%;
+
+    margin-right:12px;
+
+    position:relative;
+}
+
+
+.spotify-icon:after {
+    content:"";
+    position:absolute;
+
+    width:11px;
+    height:6px;
+
+    border-top:3px solid #1db954;
+    border-radius:50%;
+
+    left:5px;
+    top:7px;
+}
+
+
+
+/* DAILY DROP */
+
+.drop-container {
+
+    margin-top:25px;
+
+    width:300px;
+
+    border:2px solid black;
+
+    height:80px;
+
+    position:relative;
+
+    display:flex;
+
+    align-items:center;
+
+    padding:10px;
+
+}
+
+
+.drop-label {
+
+    position:absolute;
+
+    top:-12px;
+    left:15px;
+
+    background:#ffd900;
+
+    border:1px solid black;
+
+    padding:2px 10px;
+
+    font-size:11px;
+
+    font-weight:bold;
+
+}
+
+
+
+.album {
+
+    width:45px;
+    height:45px;
+
+    background:#0b1b20;
+
+    margin-right:14px;
+
+    overflow:hidden;
+
+}
+
+
+.album img {
+
+    width:100%;
+    height:100%;
+    object-fit:cover;
+
+}
+
+
+.drop-text {
+
+    font-size:12px;
+
+}
+
+
+.drop-title {
+
+    color:#111;
+
+    margin-bottom:5px;
+
+}
+
+
+.drop-sub {
+
+    color:#555;
+
+}
+
+
+
+/* FOOTER */
+
+.footer {
+
+    margin-top:30px;
+
+    font-size:12px;
+
+    color:#777;
+
+}
+
+
+.footer strong {
+
+    display:block;
+
+    margin-top:8px;
+
+    font-size:12px;
+
+    color:black;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <div class="vinyl-box">
+
+        <img src="https://i.pinimg.com/originals/03/cd/a3/03cda36b8c913ea846ca82fc7d6b255b.gif">
+
+    </div>
+
+
+
+    <div class="logo">
+
+        <h1>SONORA</h1>
+
+        <p>
+            Turn your Spotify listening into a<br>
+            collection game.
+        </p>
+
+    </div>
+
+
+
+    <a href="{{ url_for('auth.login') }}" class="spotify-btn" style = "border-radius: 0px; text-decoration: none">
+
+        <img src = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Spotify_icon.svg/960px-Spotify_icon.svg.png" style = "width: 17%; padding-right: 10px">
+
+        LOGIN WITH SPOTIFY
+
+    </a>
+
+
+
+    <div class="drop-container">
+
+
+        <div class="drop-label">
+            DAILY DROP
+        </div>
+
+
+        <div class="album">
+
+            <img src="https://i.scdn.co/image/ab67616d0000b27325b42be683b8d3c6500db726" style = border-radius: 2px;>
+
+        </div>
+
+
+        <div class="drop-text">
+
+            <div class="drop-title">
+                READY FOR REVEAL
+            </div>
+
+            <div class="drop-sub">
+                3 new artifacts waiting
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+
+    <div class="footer">
+
+        EST. 2026
+
+        <strong>
+            NOEL'S APP
+        </strong>
+
+    </div>
+
+
+</div>
+
+
+</body>
+</html>
+{% endblock %}

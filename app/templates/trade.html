@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Home — Sonora{% endblock %}
+{% block content %}
+<link href='https://fonts.googleapis.com/css?family=Space Mono' rel='stylesheet'>
+
+
+<div class="top-nav">
+    <button class="top-nav__btn top-nav__btn--menu" aria-label="Menu">☰</button>
+    <span class="top-nav__logo">SONORA</span>
+    <button class="top-nav__btn top-nav__btn--bell" aria-label="Notifications">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+    </button>
+</div>
+
+
+
+<div class="home-container" style = "padding-left: 5%">
+    <h1 style = "text-align: left; font-size: 60px; margin-top: 76px">TRADE</h1>
+</div>
+
+
+
+<div class="mobile-bottom-navigation">
+
+    <div class="mobile-navigation-item" onclick="window.location.href='{{ url_for("pool.daily_pool") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-pool">
+            ≋
+        </div>
+
+        <div class="mobile-navigation-label">
+            POOL
+        </div>
+    </div>
+
+
+    <div class="mobile-navigation-item" onclick="window.location.href='{{ url_for("vault.vault") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-vault">
+            ▣
+        </div>
+
+        <div class="mobile-navigation-label">
+            VAULT
+        </div>
+    </div>
+
+
+    <div class="mobile-navigation-item mobile-navigation-item-active" onclick="window.location.href='{{ url_for("trade.trade") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-trade">
+            ⇄
+        </div>
+
+        <div class="mobile-navigation-label">
+            TRADE
+        </div>
+    </div>
+
+
+    <div class="mobile-navigation-item" onclick="window.location.href='{{ url_for("leaderboard.leaderboard") }}'">
+        <div class="mobile-navigation-icon mobile-navigation-icon-rank">
+            ▥
+        </div>
+
+        <div class="mobile-navigation-label">
+            RANK
+        </div>
+    </div>
+
+</div>
+{% endblock %}
