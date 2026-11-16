@@ -141,3 +141,37 @@ def get_recently_played(access_token, limit=50):
     
     # Recently played returns a unique format, we just want the track data
     return [item['track'] for item in response.json().get('items', [])]
+
+def get_artist(access_token, artist_id):
+    """Get a single artist from Spotify. Returns None if the request fails."""
+    url = f'https://api.spotify.com/v1/artists/{artist_id}'
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return None
+
+    return response.json()
+
+
+def get_artist_listeners(access_token, artist_id):
+    """Get the audience size for an artist, used to decide rarity"""
+    artist = get_artist(access_token, artist_id)
+    if not artist:
+        return None
+
+    # followers is not guaranteed to be on the artist object any more,
+    # so never index straight into it
+    return (artist.get('followers') or {}).get('total')
+
+
+def get_track(access_token, track_id):
+    """Get a single track from Spotify. Returns None if the request fails."""
+    url = f'https://api.spotify.com/v1/tracks/{track_id}'
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return None
+
+    return response.json()

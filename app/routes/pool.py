@@ -1,15 +1,81 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, flash
 from flask_login import login_required, current_user
 from datetime import datetime, date
+from sqlalchemy import func
 from app.extensions import db
 from app.models import Song, DailyPool, UserInventory
 from app.auth.spotify_api import (
     get_valid_access_token, 
     get_user_top_tracks, 
-    get_recently_played
+    get_recently_played,
+    get_artist_listeners,
+    get_track
 )
+from app.rarity import assign_rarity
 
 pool_bp = Blueprint('pool', __name__, url_prefix='/home')
+
+# How many old inventory songs we try to re-rate per page load. Each one costs
+# two Spotify calls, so this stays small to keep the page fast.
+RERATE_BATCH_SIZE = 10
+
+
+def store_listeners(song, listeners):
+    """Save an artist's listener count on the song.
+
+    A failed fetch (None) never overwrites a number we already have. The first
+    time a song gets a number, every copy of it collected back when rarity was
+    hardcoded gets its real tier, whoever owns it.
+    """
+    if listeners is None:
+        return
+
+    first_time = song.artist_monthly_listeners is None
+    song.artist_monthly_listeners = listeners
+
+    if first_time:
+        UserInventory.query.filter_by(spotify_song_id=song.spotify_song_id).update(
+            {'rarity_tier': assign_rarity(listeners)}
+        )
+
+
+def rerate_old_inventory(user, access_token):
+    """Give a real rarity to songs collected back when everything was 'Common'.
+
+    Those songs have no listener count stored, which is how we find them.
+    """
+    old_items = (
+        db.session.query(UserInventory, Song)
+        .join(Song, UserInventory.spotify_song_id == Song.spotify_song_id)
+        .filter(
+            UserInventory.user_id == user.id,
+            Song.artist_monthly_listeners.is_(None)
+        )
+        # Random order, so a song Spotify cannot find any more does not sit at
+        # the front of the queue forever and block everything behind it
+        .order_by(func.random())
+        .limit(RERATE_BATCH_SIZE)
+        .all()
+    )
+
+    for _, song in old_items:
+        # We never stored the artist id, so ask Spotify for the track first
+        track = get_track(access_token, song.spotify_song_id)
+        if not track:
+            continue
+
+        # The track also tells us the album size, which these old rows are missing too
+        if song.album_total_tracks is None:
+            song.album_total_tracks = track.get('album', {}).get('total_tracks')
+
+        listeners = get_artist_listeners(access_token, track['artists'][0]['id'])
+        if listeners is None:
+            # Spotify is not giving us numbers right now, no point asking again
+            break
+
+        store_listeners(song, listeners)
+
+    db.session.commit()
 
 @pool_bp.route('/')
 @login_required
@@ -50,14 +116,20 @@ def daily_pool():
         # Save to database
         for track in final_100_tracks:
             # 1. Save to global Song dictionary if it doesn't exist
-            if not Song.query.get(track['id']):
-                album = track.get('album', {})
+            album = track.get('album', {})
+            existing_song = Song.query.get(track['id'])
+            if existing_song:
+                # Songs saved before we stored album sizes get filled in here
+                if existing_song.album_total_tracks is None:
+                    existing_song.album_total_tracks = album.get('total_tracks')
+            else:
                 new_song = Song(
                     spotify_song_id=track['id'],
                     song_name=track['name'],
                     artist_name=track['artists'][0]['name'],
                     spotify_album_id=album.get('id'),
                     album_name=album.get('name'),
+                    album_total_tracks=album.get('total_tracks'),
                     album_artwork_url=album.get('images', [{}])[0].get('url') if album.get('images') else None
                 )
                 db.session.add(new_song)
@@ -75,6 +147,7 @@ def daily_pool():
     # PHASE 2: THE LISTENING ACTIVITY MATCH CHECK -----------------------------------------------------------------------------------------------------------------------
     recently_played = get_recently_played(access_token, limit=20)
     newly_revealed_songs = []
+    artist_listeners = {}  # artist id -> listener count, so each artist is only fetched once per request
 
     for track in recently_played:
         track_id = track['id']
@@ -99,16 +172,24 @@ def daily_pool():
                 spotify_song_id=track_id
             ).first()
 
+            song_details = Song.query.get(track_id)
+
             if not already_in_inventory:
+                # Rarity comes from the size of the artist's audience, fetched at reveal time
+                artist_id = track['artists'][0]['id']
+                if artist_id not in artist_listeners:
+                    artist_listeners[artist_id] = get_artist_listeners(access_token, artist_id)
+                store_listeners(song_details, artist_listeners[artist_id])
+
+                # If the fetch failed this falls back to the last number we stored
                 new_inventory_item = UserInventory(
                     user_id=current_user.id,
                     spotify_song_id=track_id,
-                    rarity_tier='Common' # We will add rarity logic later!
+                    rarity_tier=assign_rarity(song_details.artist_monthly_listeners)
                 )
                 db.session.add(new_inventory_item)
 
             # 3. Get full song details to send to the frontend for animation
-            song_details = Song.query.get(track_id)
             if song_details:
                 newly_revealed_songs.append({
                     'name': song_details.song_name,
@@ -119,6 +200,9 @@ def daily_pool():
     # Save all the matches we just found
     if newly_revealed_songs:
         db.session.commit()
+
+    # Catch up on songs that were collected before rarity existed
+    rerate_old_inventory(current_user, access_token)
 
     # PHASE 3: FETCH DATA FOR THE UI ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Get all of today's pool entries for this user
