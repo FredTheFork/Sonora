@@ -1,27 +1,27 @@
-# Rarity Assignment Module (design section 2.4.4 / Algorithm 2)
+# Rarity Assignment Module (replaces design section 2.4.4 / Algorithm 2)
 #
-# The tier is decided by how big the artist is: the smaller the audience,
-# the rarer the song.
+# The tier is decided by how many Sonora users have the song: the fewer
+# people who own it, the rarer it is.
 
-LEGENDARY_THRESHOLD = 1000
-EPIC_THRESHOLD = 10000
-RARE_THRESHOLD = 100000
+LEGENDARY_THRESHOLD = 2
+EPIC_THRESHOLD = 5
+RARE_THRESHOLD = 15
 
 
-def assign_rarity(listeners):
-    """Return the rarity tier for an artist with this many listeners.
+def assign_rarity(owner_count):
+    """Return the rarity tier for a song owned by this many Sonora users.
 
-    listeners is None when Spotify gave us no number for the artist. An
-    unknown artist is treated as Common so nobody gets a free Legendary
-    out of missing data.
+    owner_count counts every inventory row for the song, including the user
+    who just collected it. Anything we cannot count is treated as Common so
+    nobody gets a free Legendary out of a missing number.
     """
-    if listeners is None:
+    if owner_count is None:
         return 'Common'
-    if listeners < LEGENDARY_THRESHOLD:
+    if owner_count <= LEGENDARY_THRESHOLD:
         return 'Legendary'
-    elif listeners < EPIC_THRESHOLD:
+    elif owner_count <= EPIC_THRESHOLD:
         return 'Epic'
-    elif listeners < RARE_THRESHOLD:
+    elif owner_count <= RARE_THRESHOLD:
         return 'Rare'
     else:
         return 'Common'

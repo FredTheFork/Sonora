@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Home — Sonora{% endblock %}
 {% block content %}
+<style>
+    .song-rarity { position: absolute; top: 8px; right: 8px; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 2px; }
+    .rarity-common { background-color: #e2e2e2; color: #000000; }
+    .rarity-rare { background-color: #3b82f6; color: #ffffff; }
+    .rarity-epic { background-color: #a855f7; color: #ffffff; }
+    .rarity-legendary { background-color: #EAB308; color: #000000; border: 2px solid #000000; }
+    .found-song-card { position: relative; }
+</style>
 <div class="top-nav">
     <button class="top-nav__btn top-nav__btn--menu" aria-label="Menu">☰</button>
     <span class="top-nav__logo">SONORA</span>
@@ -56,6 +64,9 @@
                     <div class="song-title">{{ song.name | upper }}</div>
                     <div class="song-artist">{{ song.artist }}</div>
                 </div>
+                {% if song.rarity %}
+                <div class="song-rarity rarity-{{ song.rarity | lower }}">{{ song.rarity | upper }}</div>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}

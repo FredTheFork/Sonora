@@ -566,3 +566,233 @@ Everything above ran against fake Spotify responses. On the first real run:
 - `instance/sonora.db` is committed to the repository and contains real
   Spotify access and refresh tokens for two accounts. It should be removed
   from git and added to a `.gitignore`.
+
+---
+
+## Stage: scrapping audience-size rarity — rarity by how many people in Sonora have it
+
+### The error that forced this stage
+
+The previous stage built rarity on the artist's audience size from the
+Spotify API. Looking at it properly, that design cannot work for this app,
+for four reasons stacked on top of each other:
+
+1. **Spotify does not give out monthly listeners.** That was already known
+   when the previous stage was built (it is section 0 of that stage). The
+   previous stage stored `followers.total` into `artist_monthly_listeners`
+   and carried on.
+2. **Even the follower count may not arrive.** Spotify's February 2026
+   development-mode changes remove `followers` and `popularity` from the
+   artist object for newly created development-mode apps. Whether this app
+   still receives them has never been verified against the real API, and
+   nobody will be able to tell until a real login happens. A rarity system
+   whose input might silently not exist is not a rarity system.
+3. **It answers the wrong question.** The design goal is that collecting a
+   song here feels earned. "How popular is the artist on Spotify" is a
+   property of the artist, not of this app. Two users of Sonora collecting
+   the same obscure song on the same day get the same rarity as a million
+   hypothetical strangers — the in-app collection means nothing.
+4. **It made rarity the most fragile part of the app.** Every reveal needed
+   a live request to `api.spotify.com` before the song could be stored.
+   One rate-limit or expired field and rarity broke, or the request was
+   pure waste at reveal time.
+
+Decision, agreed with the project owner: **rarity is now based purely on
+Sonora's own data — how many user_inventory rows exist for a song.** No
+Spotify call is involved anywhere in rarity.
+
+- Thresholds (absolute counts, same style as the design document's absolute
+  listener thresholds, kept as constants at the top of `app/rarity.py`):
+  - Legendary: at most **2** owners
+  - Epic: at most **5** owners
+  - Rare: at most **15** owners
+  - Common: more than 15 owners
+- A song's tier is a live property of the community, recomputed from the
+  real count every time it changes, for **every owner of that song**, not
+  just the person revealing it. (The previous stage only updated the
+  revealing user's copy or ran a slow re-rate.)
+- Percentage-of-total-users thresholds were considered and rejected for now:
+  with two users registered everything would be Common or everything would
+  be Legendary, and the maths invites confusion. Absolute counts are easy to
+  explain in the video and easy to change later.
+- Worked examples for the new system: 1 owner = Legendary, 4 = Epic,
+  10 = Rare, 50 = Common.
+
+Scope decisions agreed with the project owner this stage:
+
+- `DEVLOG.md` stays the one and only dev log. The empty `dev.log` placeholder
+  at the repo root was deleted (`git rm`).
+- The Spotify listener code is deleted: `get_artist`, `get_artist_listeners`
+  and `get_track` in `app/auth/spotify_api.py` are gone, along with
+  `tests/test_spotify_api.py` which tested them.
+- The `artist_monthly_listeners` column is kept in the model but nothing
+  reads or writes it any more. No migration was run against the real
+  database; dropping a column on a committed SQLite file is a separate job.
+- `instance/sonora.db` is still tracked in git with real tokens. Still needs
+  removing from history; not done in this stage.
+- `__pycache__/*.cpython-39.pyc` files were tracked in the repo (someone
+  uploaded them by accident). They are deleted in this stage and a
+  `.gitignore` for `__pycache__/`, `*.pyc` and `.pytest_cache/` is added.
+
+Note for the write-up: **design document sections 2.4.4 and Algorithm 2 are
+now out of date.** They describe listener-threshold rarity. The document
+(entries in the testing section's table for the rarity tests too) should be
+updated to describe owner-count rarity, or the marker will see a mismatch
+between the design and the build.
+
+### The work, in order
+
+1. `app/rarity.py` rewritten: `assign_rarity(owner_count)`,
+   `<= 2` Legendary, `<= 5` Epic, `<= 15` Rare, else Common. `None` still
+   returns Common so a missing number can never hand out free rarity.
+2. Reveal path in `pool.py`: insert the new inventory row, `flush()` so it
+   can be counted, then count owners of the song **including the new row**
+   and set that tier on every owner of the song. The reveal animation
+   payload now carries the tier (`newly_revealed`).
+3. `sync_inventory_rarities()` runs on every home page load. One query reads
+   all inventory rows, owner counts are computed per song, and only rows
+   whose stored tier has drifted are rewritten. This retires the old
+   `rerate_old_inventory` / `store_listeners` / `RERATE_BATCH_SIZE` code,
+   including the two-Spotify-calls-per-song re-rate. It is what repairs the
+   58 legacy hardcoded-Common rows (see the real-database check below).
+4. `home.html` gained a small rarity badge on revealed songs, and the
+   RECENTLY FOUND list shows each song's tier. Vault was already correct
+   (it displays whatever tier is stored) and needed no changes.
+5. `tests/test_rarity.py` rewritten for the new worked examples and
+   boundaries; `tests/test_pool.py` rewritten — no test touches Spotify any
+   more; `tests/test_spotify_api.py` deleted.
+
+### Error 1 — the whole listener-based world stopped agreeing
+
+Straight after swapping `assign_rarity` over to owner counts, with nothing
+else touched yet, the suite went from 26 passed to:
+
+```
+FAILED tests/test_pool.py::test_reveal_assigns_rarity_from_listeners - Assert...
+FAILED tests/test_pool.py::test_same_artist_only_fetched_once - AssertionErro...
+FAILED tests/test_pool.py::test_failed_fetch_does_not_wipe_known_listeners - ...
+FAILED tests/test_pool.py::test_old_common_inventory_gets_rerated - Assertion...
+FAILED tests/test_pool.py::test_rerate_covers_every_owner_of_the_song - Asser...
+FAILED tests/test_pool.py::test_dead_tracks_do_not_block_the_rerate_queue - A...
+FAILED tests/test_rarity.py::test_design_examples[500-Legendary] - AssertionE...
+FAILED tests/test_rarity.py::test_design_examples[5000-Epic] - AssertionError...
+FAILED tests/test_rarity.py::test_design_examples[50000-Rare] - AssertionE...
+FAILED tests/test_rarity.py::test_boundaries[999-Legendary] - AssertionError:...
+FAILED tests/test_rarity.py::test_boundaries[1000-Epic] - AssertionError: ass...
+FAILED tests/test_rarity.py::test_boundaries[9999-Epic] - AssertionError: ass...
+FAILED tests/test_rarity.py::test_boundaries[10000-Rare] - AssertionError: as...
+FAILED tests/test_rarity.py::test_boundaries[99999-Rare] - AssertionError: as...
+14 failed, 12 passed in 1.37s
+```
+
+Expected, and the correct first alarm bell: the rarity module changed meaning
+while the tests, the routes and the vault were all still written in
+listener terms. A change of definition that does not break the tests would
+mean the tests were not checking anything. Fixed by rewriting the tests to
+the new semantics and rewiring `pool.py`.
+
+### Error 2 — the test suite leaked live calls to api.spotify.com
+
+With the tests rewritten to owner-count semantics but **before** the route
+was rewired, six tests failed — not on assertions, but because they were
+still hitting the network:
+
+```
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.spotify.com',
+port=443): Max retries exceeded with url: /v1/artists/a1 (Caused by
+SSLError(SSLZeroReturnError(6, 'TLS/SSL connection has been closed (EOF)
+(_ssl.c:992)')))
+
+FAILED tests/test_pool.py::test_reveal_assigns_rarity_from_owner_count - requ...
+FAILED tests/test_pool.py::test_rarity_depends_on_existing_owners - requests....
+FAILED tests/test_pool.py::test_tier_updates_for_every_owner_as_collection_grows
+FAILED tests/test_pool.py::test_legacy_hardcoded_common_rows_are_resynced_on_home_load
+FAILED tests/test_pool.py::test_resync_marks_mass_owned_songs_common - Assert...
+FAILED tests/test_pool.py::test_vault_shows_real_album_percentage - requests....
+6 failed, 18 passed in 2.02s
+```
+
+This is Error 2 and it is the loudest argument for the redesign: even in
+the test environment — with the real database never touched — rarity could
+not run without reaching Spotify, and on a school machine or a filtered
+connection it does not reach anything. The listener design baked an external
+API into the critical path of the reveal. After the reveal path was rewired
+and the Spotify listener functions deleted, the suite requires zero
+network access and passes: `22 passed in 1.09s`.
+
+### A mistake the tests did NOT catch
+
+While rewriting `tests/test_pool.py` I left this line in:
+
+```python
+load_home(client, TOP_TRACKS[:1] and [TOP_TRACKS[1]])
+```
+
+`TOP_TRACKS[:1] and [TOP_TRACKS[1]]` evaluates to `[TOP_TRACKS[1]]` because a
+non-empty list is truthy — it worked by accident and by Python's
+non-obvious semantics, not by intention. It was cleaned to
+`[TOP_TRACKS[1]]` on re-read. Leaving it in would have made the next person
+to edit that test chase a ghost. Written down here because "all tests pass"
+is not the same as "all code is what I meant".
+
+### Verified against a copy of the real database
+
+`instance/sonora.db` was copied to a temp file (the original untouched) and
+the home page was loaded as both real user accounts:
+
+```
+users: ['314f6qass3synuqnrhoskyk4fvpe', '7o2mb6zm766lkpftln3usv9yz']
+  tiers: [('Common', 58)]          <- state of the production DB today
+home load as 314f6qass3synuqnrhoskyk4fvpe -> 200
+  tiers: [('Legendary', 58)]
+home load as 7o2mb6zm766lkpftln3usv9yz -> 200
+  tiers: [('Legendary', 58)]
+```
+
+Every song in the real inventory is owned by exactly one person (the two
+accounts share no songs at all), so "Legendary" is the correct tier for all
+58 rows — and it is also a useful warning: **until other people start
+collecting the same songs, every song every user reveals will say
+Legendary.** That is inherent to absolute owner thresholds in a two-user
+app, not a bug; the tiers only become informative once there is a community
+or the thresholds are revisited. The rarity badges and the vault filter
+work (`/vault/` renders 200 with the badges present, filter bar present).
+
+### Result
+
+```
+......................                                                   [100%]
+22 passed in 1.09s
+```
+
+| # | Test | Type | Expected | Result |
+|---|------|------|----------|--------|
+| 1 | `assign_rarity(1/4/10/50)` | Functional | Legendary / Epic / Rare / Common | Pass |
+| 2 | `assign_rarity` at 0, 2, 3, 5, 6, 15, 16 | Boundary | Tier changes exactly at each threshold | Pass |
+| 3 | `assign_rarity(None)` | Erroneous | Common | Pass |
+| 4 | Pool generation saves `album_total_tracks` | Functional | 12 and 9 stored | Pass |
+| 5 | Pool generation backfills pre-existing songs | Functional | NULL becomes 12 | Pass |
+| 6 | Reveal gives Legendary to a song only u1 has | Functional | Legendary | Pass |
+| 7 | Reveal into a song 5 others own | Functional | Epic for the new copy | Pass |
+| 8 | Tier fans out to every owner as the count crosses thresholds | Functional | All copies Epic at 5, all Rare at 6 | Pass |
+| 9 | Legacy hardcoded-Common rows fixed on home load | Functional | Legendary, no reveal needed | Pass |
+| 10 | 17-owner song re-tiered to Common for every owner | Functional | Common | Pass |
+| 11 | Home page with a dead Spotify session | Erroneous | Redirect to login | Pass |
+| 12 | Vault with 1 of 12 album songs | Functional | `1/12`, `8%` | Pass |
+| 13 | Rarity badge rendered on reveal | Functional | LEGENDARY badge in page | Pass |
+
+### Known issues carried forward
+
+- Tiers will read Legendary for almost everything until the app has a real
+  community; thresholds are untested against real population data.
+- `artist_monthly_listeners` is now write-only data that nothing uses; kept
+  for compatibility, remove in a future migration if still unused.
+- The design document (2.4.4, Algorithm 2, and the rarity rows of the test
+  tables in 3.3) is out of date relative to this stage and needs rewriting.
+- Album size is still not a rarity factor (still undecided — unchanged).
+- Album sizes for songs that are no longer in anyone's top tracks can no
+  longer be backfilled (the re-rate that fetched tracks was deleted); those
+  albums keep showing 100% in the vault (the 3.3 stopgap).
+- `pytest` still not in `requirements.txt`; the UTF-16 file was left alone
+  again deliberately.
+- `instance/sonora.db` with real Spotify tokens is still committed in git.

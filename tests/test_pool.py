@@ -23,13 +23,11 @@ def make_track(track_id, name, artist_id, artist_name, album_id='alb1', total_tr
 
 
 TOP_TRACKS = [
-    make_track('t1', 'Tiny Song', 'a_tiny', 'Garage Band', 'alb1', 12),
-    make_track('t2', 'Mid Song', 'a_mid', 'Indie Band', 'alb2', 9),
-    make_track('t3', 'Huge Song', 'a_huge', 'Stadium Band', 'alb3', 14),
-    make_track('t4', 'Tiny Song 2', 'a_tiny', 'Garage Band', 'alb1', 12),
+    make_track('t1', 'Track One', 'a1', 'Band One', 'alb1', 12),
+    make_track('t2', 'Track Two', 'a2', 'Band Two', 'alb2', 9),
+    make_track('t3', 'Track Three', 'a3', 'Band Three', 'alb3', 14),
+    make_track('t4', 'Track Four', 'a1', 'Band One', 'alb1', 12),
 ]
-
-LISTENERS = {'a_tiny': 400, 'a_mid': 45000, 'a_huge': 9000000}
 
 
 def add_user(user_id):
@@ -45,6 +43,10 @@ def add_user(user_id):
     return user
 
 
+def add_inventory_rows(owner_id, song_id, tier='Common'):
+    db.session.add(UserInventory(user_id=owner_id, spotify_song_id=song_id, rarity_tier=tier))
+
+
 @pytest.fixture
 def client(app):
     with app.app_context():
@@ -56,15 +58,12 @@ def client(app):
     return client
 
 
-def load_home(client, recently_played, listeners=LISTENERS, tracks=None):
+def load_home(client, recently_played):
     """Load /home/ with every Spotify call replaced by fake data"""
-    tracks = tracks or {}
     with patch('app.routes.pool.get_user_top_tracks', return_value=TOP_TRACKS), \
-         patch('app.routes.pool.get_recently_played', return_value=recently_played), \
-         patch('app.routes.pool.get_artist_listeners', side_effect=lambda tok, aid: listeners.get(aid)) as artist_mock, \
-         patch('app.routes.pool.get_track', side_effect=lambda tok, tid: tracks.get(tid)):
+         patch('app.routes.pool.get_recently_played', return_value=recently_played):
         response = client.get('/home/')
-    return response, artist_mock
+    return response
 
 
 def rarity_of(app, user_id, song_id):
@@ -74,7 +73,7 @@ def rarity_of(app, user_id, song_id):
 
 
 def test_pool_generation_stores_album_total_tracks(app, client):
-    response, _ = load_home(client, [])
+    response = load_home(client, [])
     assert response.status_code == 200
     with app.app_context():
         assert Song.query.get('t1').album_total_tracks == 12
@@ -82,87 +81,76 @@ def test_pool_generation_stores_album_total_tracks(app, client):
 
 
 def test_pool_generation_fills_in_old_songs(app, client):
-    # a song row from before this change: no album size
+    # a song row from before we stored album sizes: no total tracks
     with app.app_context():
-        db.session.add(Song(spotify_song_id='t1', song_name='Tiny Song', spotify_album_id='alb1'))
+        db.session.add(Song(spotify_song_id='t1', song_name='Track One', spotify_album_id='alb1'))
         db.session.commit()
     load_home(client, [])
     with app.app_context():
         assert Song.query.get('t1').album_total_tracks == 12
 
 
-def test_reveal_assigns_rarity_from_listeners(app, client):
+def test_reveal_assigns_rarity_from_owner_count(app, client):
     load_home(client, TOP_TRACKS[:3])
+    # u1 is the only owner of each song so far
     assert rarity_of(app, 'u1', 't1') == 'Legendary'
-    assert rarity_of(app, 'u1', 't2') == 'Rare'
-    assert rarity_of(app, 'u1', 't3') == 'Common'
+    assert rarity_of(app, 'u1', 't2') == 'Legendary'
+    assert rarity_of(app, 'u1', 't3') == 'Legendary'
+
+
+def test_rarity_depends_on_existing_owners(app, client):
+    # 4 other people already have t2 before u1 collects it -> u1's copy is Epic
     with app.app_context():
-        assert Song.query.get('t1').artist_monthly_listeners == 400
-
-
-def test_same_artist_only_fetched_once(app, client):
-    _, artist_mock = load_home(client, [TOP_TRACKS[0], TOP_TRACKS[3]])
-    assert artist_mock.call_count == 1
-    assert rarity_of(app, 'u1', 't4') == 'Legendary'
-
-
-def test_reveal_when_spotify_gives_no_listeners(app, client):
-    response, _ = load_home(client, TOP_TRACKS[:1], listeners={})
-    assert response.status_code == 200
-    assert rarity_of(app, 'u1', 't1') == 'Common'
-
-
-def test_failed_fetch_does_not_wipe_known_listeners(app, client):
-    with app.app_context():
-        db.session.add(Song(spotify_song_id='t1', song_name='Tiny Song',
-                            spotify_album_id='alb1', artist_monthly_listeners=400))
+        for uid in ['u2', 'u3', 'u4', 'u5']:
+            add_user(uid)
+            add_inventory_rows(uid, 't2')
         db.session.commit()
-    load_home(client, TOP_TRACKS[:1], listeners={})
-    with app.app_context():
-        assert Song.query.get('t1').artist_monthly_listeners == 400
+    load_home(client, [TOP_TRACKS[1]])
+    assert rarity_of(app, 'u1', 't2') == 'Epic'
+
+
+def test_tier_updates_for_every_owner_as_collection_grows(app, client):
+    # u1 collects t1 while alone -> Legendary for u1
+    load_home(client, [TOP_TRACKS[0]])
     assert rarity_of(app, 'u1', 't1') == 'Legendary'
 
+    # u2..u6 collect the same song; once the 6th copy exists every copy is Rare
+    with app.app_context():
+        for uid in ['u2', 'u3', 'u4', 'u5']:
+            add_user(uid)
+            add_inventory_rows(uid, 't1', 'Legendary')
+        db.session.commit()
+    load_home(client, [])   # home load re-syncs stored tiers with real counts
+    assert rarity_of(app, 'u1', 't1') == 'Epic'   # 5 owners
 
-def test_old_common_inventory_gets_rerated(app, client):
-    # state of the real database today: collected, hardcoded Common, no listener count
+    with app.app_context():
+        add_user('u6')
+        add_inventory_rows('u6', 't1', 'Epic')
+        db.session.commit()
+    load_home(client, [])
+    for uid in ['u1', 'u2', 'u6']:
+        assert rarity_of(app, uid, 't1') == 'Rare'  # 6 owners
+
+
+def test_legacy_hardcoded_common_rows_are_resynced_on_home_load(app, client):
+    # state of the real database today: collected, hardcoded Common
     with app.app_context():
         db.session.add(Song(spotify_song_id='old1', song_name='Old Song'))
-        db.session.add(UserInventory(user_id='u1', spotify_song_id='old1', rarity_tier='Common'))
+        add_inventory_rows('u1', 'old1', 'Common')
         db.session.commit()
-    tracks = {'old1': make_track('old1', 'Old Song', 'a_tiny', 'Garage Band')}
-    load_home(client, [], tracks=tracks)
+    load_home(client, [])   # no reveals at all, resync still fixes the tier
     assert rarity_of(app, 'u1', 'old1') == 'Legendary'
-    with app.app_context():
-        assert Song.query.get('old1').album_total_tracks == 12
 
 
-def test_rerate_covers_every_owner_of_the_song(app, client):
-    # two users both collected the same song back when everything was Common
+def test_resync_marks_mass_owned_songs_common(app, client):
     with app.app_context():
-        add_user('u2')
-        db.session.add(Song(spotify_song_id='old1', song_name='Old Song'))
-        db.session.add(UserInventory(user_id='u1', spotify_song_id='old1', rarity_tier='Common'))
-        db.session.add(UserInventory(user_id='u2', spotify_song_id='old1', rarity_tier='Common'))
+        for i in range(16):
+            add_user(f'other{i}')
+            add_inventory_rows(f'other{i}', 'big1', 'Legendary')
+        add_inventory_rows('u1', 'big1', 'Legendary')
         db.session.commit()
-    tracks = {'old1': make_track('old1', 'Old Song', 'a_tiny', 'Garage Band')}
-    load_home(client, [], tracks=tracks)   # u1 loads the page
-    assert rarity_of(app, 'u1', 'old1') == 'Legendary'
-    assert rarity_of(app, 'u2', 'old1') == 'Legendary'
-
-
-def test_dead_tracks_do_not_block_the_rerate_queue(app, client):
-    # 10 songs Spotify no longer knows about (a full batch) plus one it does
-    with app.app_context():
-        for i in range(10):
-            db.session.add(Song(spotify_song_id=f'dead{i}', song_name='Gone'))
-            db.session.add(UserInventory(user_id='u1', spotify_song_id=f'dead{i}', rarity_tier='Common'))
-        db.session.add(Song(spotify_song_id='old1', song_name='Old Song'))
-        db.session.add(UserInventory(user_id='u1', spotify_song_id='old1', rarity_tier='Common'))
-        db.session.commit()
-    tracks = {'old1': make_track('old1', 'Old Song', 'a_tiny', 'Garage Band')}
-    for _ in range(30):
-        load_home(client, [], tracks=tracks)
-    assert rarity_of(app, 'u1', 'old1') == 'Legendary'
+    load_home(client, [])
+    assert rarity_of(app, 'u1', 'big1') == 'Common'   # 17 owners
 
 
 def test_expired_session_redirects_to_login(app, client):
@@ -178,3 +166,11 @@ def test_vault_shows_real_album_percentage(app, client):
     page = response.get_data(as_text=True)
     assert '1/12' in page or '1 / 12' in page
     assert '8%' in page
+
+
+def test_home_page_shows_rarity_badge_on_reveal(app, client):
+    response = load_home(client, TOP_TRACKS[:1])   # TOP_TRACKS[0] revealed
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert 'song-rarity' in page
+    assert 'LEGENDARY' in page
