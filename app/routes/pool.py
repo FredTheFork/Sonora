@@ -1,81 +1,47 @@
 from flask import Blueprint, render_template, flash
 from flask_login import login_required, current_user
 from datetime import datetime, date
-from sqlalchemy import func
+from collections import Counter
 from app.extensions import db
 from app.models import Song, DailyPool, UserInventory
 from app.auth.spotify_api import (
     get_valid_access_token, 
     get_user_top_tracks, 
     get_recently_played,
-    get_artist_listeners,
-    get_track
 )
 from app.rarity import assign_rarity
 
 pool_bp = Blueprint('pool', __name__, url_prefix='/home')
 
-# How many old inventory songs we try to re-rate per page load. Each one costs
-# two Spotify calls, so this stays small to keep the page fast.
-RERATE_BATCH_SIZE = 10
+
+def sync_song_rarity(song_id):
+    """Set the rarity of a song from how many people have it, for EVERY owner."""
+    owner_count = UserInventory.query.filter_by(spotify_song_id=song_id).count()
+    tier = assign_rarity(owner_count)
+    UserInventory.query.filter_by(spotify_song_id=song_id).update({'rarity_tier': tier})
+    return tier
 
 
-def store_listeners(song, listeners):
-    """Save an artist's listener count on the song.
+def sync_inventory_rarities():
+    """Recalculate every stored tier from the real owner counts.
 
-    A failed fetch (None) never overwrites a number we already have. The first
-    time a song gets a number, every copy of it collected back when rarity was
-    hardcoded gets its real tier, whoever owns it.
+    One pass over the inventory, only rows whose tier has drifted are
+    rewritten, so this costs one query when nothing changed.
     """
-    if listeners is None:
-        return
+    rows = db.session.query(
+        UserInventory.id, UserInventory.spotify_song_id, UserInventory.rarity_tier
+    ).all()
+    owners_per_song = Counter(song_id for _, song_id, _ in rows)
 
-    first_time = song.artist_monthly_listeners is None
-    song.artist_monthly_listeners = listeners
+    updated = 0
+    for row_id, song_id, stored_tier in rows:
+        expected = assign_rarity(owners_per_song[song_id])
+        if stored_tier != expected:
+            UserInventory.query.filter_by(id=row_id).update({'rarity_tier': expected})
+            updated += 1
 
-    if first_time:
-        UserInventory.query.filter_by(spotify_song_id=song.spotify_song_id).update(
-            {'rarity_tier': assign_rarity(listeners)}
-        )
-
-
-def rerate_old_inventory(user, access_token):
-    """Give a real rarity to songs collected back when everything was 'Common'.
-
-    Those songs have no listener count stored, which is how we find them.
-    """
-    old_items = (
-        db.session.query(UserInventory, Song)
-        .join(Song, UserInventory.spotify_song_id == Song.spotify_song_id)
-        .filter(
-            UserInventory.user_id == user.id,
-            Song.artist_monthly_listeners.is_(None)
-        )
-        # Random order, so a song Spotify cannot find any more does not sit at
-        # the front of the queue forever and block everything behind it
-        .order_by(func.random())
-        .limit(RERATE_BATCH_SIZE)
-        .all()
-    )
-
-    for _, song in old_items:
-        # We never stored the artist id, so ask Spotify for the track first
-        track = get_track(access_token, song.spotify_song_id)
-        if not track:
-            continue
-
-        # The track also tells us the album size, which these old rows are missing too
-        if song.album_total_tracks is None:
-            song.album_total_tracks = track.get('album', {}).get('total_tracks')
-
-        listeners = get_artist_listeners(access_token, track['artists'][0]['id'])
-        if listeners is None:
-            # Spotify is not giving us numbers right now, no point asking again
-            break
-
-        store_listeners(song, listeners)
-
-    db.session.commit()
+    if updated:
+        db.session.commit()
 
 @pool_bp.route('/')
 @login_required
@@ -147,7 +113,6 @@ def daily_pool():
     # PHASE 2: THE LISTENING ACTIVITY MATCH CHECK -----------------------------------------------------------------------------------------------------------------------
     recently_played = get_recently_played(access_token, limit=20)
     newly_revealed_songs = []
-    artist_listeners = {}  # artist id -> listener count, so each artist is only fetched once per request
 
     for track in recently_played:
         track_id = track['id']
@@ -175,34 +140,36 @@ def daily_pool():
             song_details = Song.query.get(track_id)
 
             if not already_in_inventory:
-                # Rarity comes from the size of the artist's audience, fetched at reveal time
-                artist_id = track['artists'][0]['id']
-                if artist_id not in artist_listeners:
-                    artist_listeners[artist_id] = get_artist_listeners(access_token, artist_id)
-                store_listeners(song_details, artist_listeners[artist_id])
-
-                # If the fetch failed this falls back to the last number we stored
                 new_inventory_item = UserInventory(
                     user_id=current_user.id,
                     spotify_song_id=track_id,
-                    rarity_tier=assign_rarity(song_details.artist_monthly_listeners)
+                    rarity_tier='Common'  # real tier set from the owner count below
                 )
                 db.session.add(new_inventory_item)
+                db.session.flush()  # make the new row countable
+
+                # Rarity comes from how many Sonora users own the song,
+                # counted with the new row included
+                tier = sync_song_rarity(track_id)
+            else:
+                tier = None
 
             # 3. Get full song details to send to the frontend for animation
             if song_details:
                 newly_revealed_songs.append({
                     'name': song_details.song_name,
                     'artist': song_details.artist_name,
-                    'image': song_details.album_artwork_url
+                    'image': song_details.album_artwork_url,
+                    'rarity': tier
                 })
 
     # Save all the matches we just found
     if newly_revealed_songs:
         db.session.commit()
 
-    # Catch up on songs that were collected before rarity existed
-    rerate_old_inventory(current_user, access_token)
+    # Bring every stored tier in line with the real owner counts. This also
+    # fixes songs collected before rarity existed.
+    sync_inventory_rarities()
 
     # PHASE 3: FETCH DATA FOR THE UI ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Get all of today's pool entries for this user
@@ -215,6 +182,15 @@ def daily_pool():
     revealed_songs_data = []
     
     # Loop through the pool and manually grab the Song details for revealed tracks
+    revealed_ids = [e.spotify_song_id for e in todays_pool if e.revealed]
+    inventory_tiers = {
+        row.spotify_song_id: row.rarity_tier
+        for row in UserInventory.query.filter(
+            UserInventory.user_id == current_user.id,
+            UserInventory.spotify_song_id.in_(revealed_ids)
+        ).all()
+    } if revealed_ids else {}
+
     for entry in todays_pool:
         if entry.revealed:
             song = Song.query.get(entry.spotify_song_id)
@@ -222,7 +198,8 @@ def daily_pool():
                 revealed_songs_data.append({
                     'name': song.song_name,
                     'artist': song.artist_name,
-                    'image': song.album_artwork_url
+                    'image': song.album_artwork_url,
+                    'rarity': inventory_tiers.get(entry.spotify_song_id) or 'Common'
                 })
 
     revealed_count = len(revealed_songs_data)
